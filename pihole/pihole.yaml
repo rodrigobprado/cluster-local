@@ -76,7 +76,26 @@ spec:
         - name: WEBPASSWORD
           value: "YourSecurePassword" # Defina uma senha segura
         - name: VIRTUAL_HOST
-          value: "pihole.local"          
+          value: "pihole.local"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "200m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
         volumeMounts:
         - name: pihole-data
           mountPath: /etc/pihole
