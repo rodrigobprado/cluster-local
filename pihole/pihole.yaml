@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pihole
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pihole-data-pv
+  namespace: pihole
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /VMs/pihole/
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - kowalski # Substituir pelo nome real do nó
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pihole-data
+  namespace: pihole
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: manual
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole
+  namespace: pihole
+  labels:
+    app: pihole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pihole
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      containers:
+      - name: pihole
+        image: pihole/pihole:latest
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 53
+          name: dns
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        env:
+        - name: IPV6
+          value: "True"
+        - name: TZ
+          value: "America/Sao_Paulo" # Ajuste para o seu fuso horário
+        - name: WEBPASSWORD
+          value: "YourSecurePassword" # Defina uma senha segura
+        - name: VIRTUAL_HOST
+          value: "pihole.local"          
+        volumeMounts:
+        - name: pihole-data
+          mountPath: /etc/pihole
+        - name: dnsmasq-data
+          mountPath: /etc/dnsmasq.d
+      volumes:
+      - name: pihole-data
+        persistentVolumeClaim:
+          claimName: pihole-data
+      - name: dnsmasq-data
+        emptyDir: {} # Dnsmasq pode continuar em EmptyDir se for temporário
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole
+  namespace: pihole
+  labels:
+    app: pihole
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    nodePort: 30080  # Porta exposta no nó
+    name: http
+  - port: 53
+    targetPort: 53
+    protocol: UDP
+    nodePort: 30053
+    name: dns
+  - port: 53
+    targetPort: 53
+    protocol: TCP
+    nodePort: 30054
+    name: dns-tcp
+  selector:
+    app: pihole
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-clusterip
+  namespace: pihole
+  labels:
+    app: pihole
+spec:
+  type: ClusterIP
+  externalIPs:
+  - 192.168.15.123  # IP do nó master
+#  - 2804:1b2:6040:a367:ca8a:9aff:fe6d:4f98 # Substitua pelo endereço IPv6 estático
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 53
+    targetPort: 53
+    protocol: UDP
+    name: dns
+  - port: 53
+    targetPort: 53
+    protocol: TCP
+    name: dns-tcp
+  selector:
+    app: pihole
+---    
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pihole-ingress
+  namespace: pihole
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+spec:
+  rules:
+  - host: pihole.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: pihole
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - pihole.local
+    secretName: pihole-tls
