@@ -76,7 +76,7 @@ spec:
         - name: WEBPASSWORD
           value: "YourSecurePassword" # Defina uma senha segura
         - name: VIRTUAL_HOST
-          value: "pihole.local"          
+          value: "pihole.local"
         volumeMounts:
         - name: pihole-data
           mountPath: /etc/pihole
@@ -145,7 +145,7 @@ spec:
     name: dns-tcp
   selector:
     app: pihole
----    
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
