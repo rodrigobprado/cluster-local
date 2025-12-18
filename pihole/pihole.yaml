@@ -76,7 +76,7 @@ spec:
         - name: WEBPASSWORD
           value: "YourSecurePassword" # Defina uma senha segura
         - name: VIRTUAL_HOST
-          value: "pihole.local"
+          value: "pihole.toca.lan"
         volumeMounts:
         - name: pihole-data
           mountPath: /etc/pihole
@@ -98,7 +98,7 @@ metadata:
     app: pihole
 spec:
   type: NodePort
-  externalTrafficPolicy: Local
+  externalTrafficPolicy: toca.lan
   ports:
   - port: 80
     targetPort: 80
@@ -156,7 +156,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "64m"
 spec:
   rules:
-  - host: pihole.local
+  - host: pihole.toca.lan
     http:
       paths:
       - path: /
@@ -168,5 +168,5 @@ spec:
               number: 80
   tls:
   - hosts:
-    - pihole.local
+    - pihole.toca.lan
     secretName: pihole-tls
